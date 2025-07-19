@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flutter ARGB Color Picker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .picker-container {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .picker-row {
+            display: grid;
+            grid-template-columns: 200px 240px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .color-preview {
+            width: 200px;
+            height: 200px;
+            border-radius: 15px;
+            border: 3px solid #e0e0e0;
+            background: linear-gradient(45deg, #ccc 25%, transparent 25%),
+                linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ccc 75%),
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-preview::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 12px;
+            background-color: var(--preview-color, rgba(255, 0, 0, 1));
+            transition: background-color 0.2s ease;
+        }
+
+        .visual-picker {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .color-area-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-area-container canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        .color-cursor {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+        }
+
+        .hue-bar-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .hue-bar-container canvas {
+            display: block;
+            cursor: pointer;
+        }
+
+        .hue-cursor {
+            position: absolute;
+            left: -2px;
+            right: -2px;
+            height: 4px;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            transform: translateY(-50%);
+            transition: all 0.1s ease;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .slider-group {
+            display: grid;
+            grid-template-columns: 80px 1fr 80px;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .slider-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: #e0e0e0;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #1976D2;
+        }
+
+        input[type="number"] {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .color-input-group {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 80px 1fr 60px;
+            gap: 15px;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .color-input-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        #hexInput {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.3s ease;
+        }
+
+        #hexInput:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        #colorPicker {
+            width: 50px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .output-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: 500;
+        }
+
+        .code-output {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .code-block {
+            display: grid;
+            grid-template-columns: 150px 1fr auto;
+            gap: 15px;
+            align-items: center;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border-left: 4px solid #2196F3;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .code-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+        }
+
+        code {
+            background: #f1f3f4;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #d73a49;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #1976D2;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .presets-section {
+            padding: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .presets-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: 500;
+        }
+
+        .preset-colors {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+        }
+
+        .preset-color {
+            padding: 15px 10px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preset-color:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-color: #2196F3;
+        }
+
+        @media (max-width: 1024px) {
+            .picker-row {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .color-preview {
+                margin: 0 auto;
+            }
+
+            .visual-picker {
+                justify-content: center;
+                margin: 0 auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+
+            .picker-container {
+                padding: 20px;
+            }
+
+            .code-block {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .preset-colors {
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Flutter ARGB Color Picker</h1>
+
+        <div class="picker-container">
+            <div class="picker-row">
+                <div class="color-preview" id="colorPreview"></div>
+
+                <div class="visual-picker">
+                    <div class="color-area-container">
+                        <canvas id="colorArea" width="200" height="200"></canvas>
+                        <div class="color-cursor" id="colorCursor"></div>
+                    </div>
+                    <div class="hue-bar-container">
+                        <canvas id="hueBar" width="20" height="200"></canvas>
+                        <div class="hue-cursor" id="hueCursor"></div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <div class="slider-group">
+                        <label for="alphaSlider">Alpha (A)</label>
+                        <input type="range" id="alphaSlider" min="0" max="255" value="255">
+                        <input type="number" id="alphaInput" min="0" max="255" value="255">
+                    </div>
+
+                    <div class="slider-group">
+                        <label for="redSlider">Red (R)</label>
+                        <input type="range" id="redSlider" min="0" max="255" value="255">
+                        <input type="number" id="redInput" min="0" max="255" value="255">
+                    </div>
+
+                    <div class="slider-group">
+                        <label for="greenSlider">Green (G)</label>
+                        <input type="range" id="greenSlider" min="0" max="255" value="0">
+                        <input type="number" id="greenInput" min="0" max="255" value="0">
+                    </div>
+
+                    <div class="slider-group">
+                        <label for="blueSlider">Blue (B)</label>
+                        <input type="range" id="blueSlider" min="0" max="255" value="0">
+                        <input type="number" id="blueInput" min="0" max="255" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="color-input-group">
+                <label for="hexInput">Hex Color</label>
+                <input type="text" id="hexInput" placeholder="#FF0000" maxlength="7">
+                <input type="color" id="colorPicker" value="#ff0000">
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h3>Flutter Code</h3>
+            <div class="code-output">
+                <div class="code-block">
+                    <span class="code-label">Color.fromARGB():</span>
+                    <code id="argbOutput">Color.fromARGB(255, 255, 0, 0)</code>
+                    <button class="copy-btn" onclick="copyToClipboard('argbOutput')">Copy</button>
+                </div>
+
+                <div class="code-block">
+                    <span class="code-label">Color():</span>
+                    <code id="hexOutput">Color(0xFFFF0000)</code>
+                    <button class="copy-btn" onclick="copyToClipboard('hexOutput')">Copy</button>
+                </div>
+
+                <div class="code-block">
+                    <span class="code-label">ARGB Values:</span>
+                    <code id="valuesOutput">A: 255, R: 255, G: 0, B: 0</code>
+                    <button class="copy-btn" onclick="copyToClipboard('valuesOutput')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="presets-section">
+            <h3>Common Colors</h3>
+            <div class="preset-colors">
+                <div class="preset-color" data-color="255,255,255,255" style="background-color: white;">White</div>
+                <div class="preset-color" data-color="255,0,0,0" style="background-color: black;">Black</div>
+                <div class="preset-color" data-color="255,255,0,0" style="background-color: red;">Red</div>
+                <div class="preset-color" data-color="255,0,255,0" style="background-color: green;">Green</div>
+                <div class="preset-color" data-color="255,0,0,255" style="background-color: blue;">Blue</div>
+                <div class="preset-color" data-color="255,255,255,0" style="background-color: yellow;">Yellow</div>
+                <div class="preset-color" data-color="255,255,0,255" style="background-color: magenta;">Magenta</div>
+                <div class="preset-color" data-color="255,0,255,255" style="background-color: cyan;">Cyan</div>
+                <div class="preset-color" data-color="128,128,128,128" style="background-color: rgba(128,128,128,0.5);">
+                    Gray 50%</div>
+                <div class="preset-color" data-color="0,255,0,0"
+                    style="background-color: transparent; border: 2px dashed #ccc;">Transparent</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class FlutterColorPicker {
+            constructor() {
+                this.initializeElements();
+                this.bindEvents();
+                this.updateColor();
+            }
+
+            initializeElements() {
+                this.alphaSlider = document.getElementById('alphaSlider');
+                this.redSlider = document.getElementById('redSlider');
+                this.greenSlider = document.getElementById('greenSlider');
+                this.blueSlider = document.getElementById('blueSlider');
+
+                this.alphaInput = document.getElementById('alphaInput');
+                this.redInput = document.getElementById('redInput');
+                this.greenInput = document.getElementById('greenInput');
+                this.blueInput = document.getElementById('blueInput');
+
+                this.hexInput = document.getElementById('hexInput');
+                this.colorPicker = document.getElementById('colorPicker');
+
+                this.colorArea = document.getElementById('colorArea');
+                this.hueBar = document.getElementById('hueBar');
+                this.colorCursor = document.getElementById('colorCursor');
+                this.hueCursor = document.getElementById('hueCursor');
+
+                this.colorPreview = document.getElementById('colorPreview');
+                this.argbOutput = document.getElementById('argbOutput');
+                this.hexOutput = document.getElementById('hexOutput');
+                this.valuesOutput = document.getElementById('valuesOutput');
+
+                this.presetColors = document.querySelectorAll('.preset-color');
+
+                this.currentHue = 0;
+                this.currentSaturation = 1;
+                this.currentValue = 1;
+
+                this.initializeCanvases();
+            }
+
+            bindEvents() {
+                [this.alphaSlider, this.redSlider, this.greenSlider, this.blueSlider].forEach(slider => {
+                    slider.addEventListener('input', () => this.onSliderChange());
+                });
+
+                [this.alphaInput, this.redInput, this.greenInput, this.blueInput].forEach(input => {
+                    input.addEventListener('input', () => this.onNumberInputChange());
+                });
+
+                this.hexInput.addEventListener('input', () => this.onHexInputChange());
+
+                this.colorPicker.addEventListener('input', () => this.onColorPickerChange());
+
+                this.presetColors.forEach(preset => {
+                    preset.addEventListener('click', () => this.onPresetColorClick(preset));
+                });
+
+                this.colorArea.addEventListener('mousedown', (e) => this.onColorAreaMouseDown(e));
+                this.hueBar.addEventListener('mousedown', (e) => this.onHueBarMouseDown(e));
+            }
+
+            onSliderChange() {
+                this.alphaInput.value = this.alphaSlider.value;
+                this.redInput.value = this.redSlider.value;
+                this.greenInput.value = this.greenSlider.value;
+                this.blueInput.value = this.blueSlider.value;
+
+                this.updateColor();
+                this.updateVisualPickerFromRGB();
+            }
+
+            onNumberInputChange() {
+                this.alphaInput.value = Math.max(0, Math.min(255, parseInt(this.alphaInput.value) || 0));
+                this.redInput.value = Math.max(0, Math.min(255, parseInt(this.redInput.value) || 0));
+                this.greenInput.value = Math.max(0, Math.min(255, parseInt(this.greenInput.value) || 0));
+                this.blueInput.value = Math.max(0, Math.min(255, parseInt(this.blueInput.value) || 0));
+
+                this.alphaSlider.value = this.alphaInput.value;
+                this.redSlider.value = this.redInput.value;
+                this.greenSlider.value = this.greenInput.value;
+                this.blueSlider.value = this.blueInput.value;
+
+                this.updateColor();
+            }
+
+            onHexInputChange() {
+                const hex = this.hexInput.value;
+                if (this.isValidHex(hex)) {
+                    const rgb = this.hexToRgb(hex);
+                    if (rgb) {
+                        this.redSlider.value = this.redInput.value = rgb.r;
+                        this.greenSlider.value = this.greenInput.value = rgb.g;
+                        this.blueSlider.value = this.blueInput.value = rgb.b;
+                        this.colorPicker.value = hex;
+                        this.updateColor();
+                    }
+                }
+            }
+
+            onColorPickerChange() {
+                const hex = this.colorPicker.value;
+                const rgb = this.hexToRgb(hex);
+                if (rgb) {
+                    this.redSlider.value = this.redInput.value = rgb.r;
+                    this.greenSlider.value = this.greenInput.value = rgb.g;
+                    this.blueSlider.value = this.blueInput.value = rgb.b;
+                    this.hexInput.value = hex.toUpperCase();
+                    this.updateColor();
+                }
+            }
+
+            onPresetColorClick(preset) {
+                const colorData = preset.dataset.color.split(',');
+                const [a, r, g, b] = colorData.map(val => parseInt(val));
+
+                this.alphaSlider.value = this.alphaInput.value = a;
+                this.redSlider.value = this.redInput.value = r;
+                this.greenSlider.value = this.greenInput.value = g;
+                this.blueSlider.value = this.blueInput.value = b;
+
+                this.updateColor();
+            }
+
+            updateColor() {
+                const a = parseInt(this.alphaSlider.value);
+                const r = parseInt(this.redSlider.value);
+                const g = parseInt(this.greenSlider.value);
+                const b = parseInt(this.blueSlider.value);
+
+              
+                const rgba = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+                this.colorPreview.style.setProperty('--preview-color', rgba);
+
+            
+                const hex = this.rgbToHex(r, g, b);
+                this.hexInput.value = hex;
+                this.colorPicker.value = hex;
+
+            
+                this.updateOutputs(a, r, g, b);
+            }
+
+            updateOutputs(a, r, g, b) {
+           
+                this.argbOutput.textContent = `Color.fromARGB(${a}, ${r}, ${g}, ${b})`;
+
+              
+                const hexValue = this.argbToHex(a, r, g, b);
+                this.hexOutput.textContent = `Color(${hexValue})`;
+
+              
+                this.valuesOutput.textContent = `A: ${a}, R: ${r}, G: ${g}, B: ${b}`;
+            }
+
+            argbToHex(a, r, g, b) {
+                const toHex = (n) => n.toString(16).padStart(2, '0').toUpperCase();
+                return `0x${toHex(a)}${toHex(r)}${toHex(g)}${toHex(b)}`;
+            }
+
+            rgbToHex(r, g, b) {
+                const toHex = (n) => n.toString(16).padStart(2, '0').toUpperCase();
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            }
+
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+
+            isValidHex(hex) {
+                return /^#?([A-Fa-f0-9]{6})$/.test(hex);
+            }
+
+            initializeCanvases() {
+                this.drawHueBar();
+                this.drawColorArea();
+                this.updateVisualPickerFromRGB();
+            }
+
+            drawHueBar() {
+                const ctx = this.hueBar.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+
+            
+                for (let i = 0; i <= 6; i++) {
+                    const hue = i * 60;
+                    gradient.addColorStop(i / 6, `hsl(${hue}, 100%, 50%)`);
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 20, 200);
+            }
+
+            drawColorArea() {
+                const ctx = this.colorArea.getContext('2d');
+                const imageData = ctx.createImageData(200, 200);
+
+                for (let y = 0; y < 200; y++) {
+                    for (let x = 0; x < 200; x++) {
+                        const saturation = x / 200;
+                        const value = 1 - (y / 200);
+                        const rgb = this.hsvToRgb(this.currentHue, saturation, value);
+
+                        const index = (y * 200 + x) * 4;
+                        imageData.data[index] = rgb.r;
+                        imageData.data[index + 1] = rgb.g;
+                        imageData.data[index + 2] = rgb.b;
+                        imageData.data[index + 3] = 255;
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            onColorAreaMouseDown(e) {
+                const rect = this.colorArea.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                this.updateColorFromArea(x, y);
+
+                const mouseMoveHandler = (e) => {
+                    const x = Math.max(0, Math.min(200, e.clientX - rect.left));
+                    const y = Math.max(0, Math.min(200, e.clientY - rect.top));
+                    this.updateColorFromArea(x, y);
+                };
+
+                const mouseUpHandler = () => {
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                };
+
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+            }
+
+            onHueBarMouseDown(e) {
+                const rect = this.hueBar.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+
+                this.updateHueFromBar(y);
+
+                const mouseMoveHandler = (e) => {
+                    const y = Math.max(0, Math.min(200, e.clientY - rect.top));
+                    this.updateHueFromBar(y);
+                };
+
+                const mouseUpHandler = () => {
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                };
+
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+            }
+
+            updateColorFromArea(x, y) {
+                this.currentSaturation = x / 200;
+                this.currentValue = 1 - (y / 200);
+
+                const rgb = this.hsvToRgb(this.currentHue, this.currentSaturation, this.currentValue);
+                this.updateRGBFromVisualPicker(rgb.r, rgb.g, rgb.b);
+                this.updateColorCursor(x, y);
+            }
+
+            updateHueFromBar(y) {
+                this.currentHue = (y / 200) * 360;
+                this.drawColorArea();
+
+                const rgb = this.hsvToRgb(this.currentHue, this.currentSaturation, this.currentValue);
+                this.updateRGBFromVisualPicker(rgb.r, rgb.g, rgb.b);
+                this.updateHueCursor(y);
+            }
+
+            updateRGBFromVisualPicker(r, g, b) {
+                this.redSlider.value = this.redInput.value = Math.round(r);
+                this.greenSlider.value = this.greenInput.value = Math.round(g);
+                this.blueSlider.value = this.blueInput.value = Math.round(b);
+                this.updateColor();
+            }
+
+            updateVisualPickerFromRGB() {
+                const r = parseInt(this.redSlider.value);
+                const g = parseInt(this.greenSlider.value);
+                const b = parseInt(this.blueSlider.value);
+
+                const hsv = this.rgbToHsv(r, g, b);
+                this.currentHue = hsv.h;
+                this.currentSaturation = hsv.s;
+                this.currentValue = hsv.v;
+
+                this.drawColorArea();
+                this.updateColorCursor(this.currentSaturation * 200, (1 - this.currentValue) * 200);
+                this.updateHueCursor((this.currentHue / 360) * 200);
+            }
+
+            updateColorCursor(x, y) {
+                this.colorCursor.style.left = `${x}px`;
+                this.colorCursor.style.top = `${y}px`;
+            }
+
+            updateHueCursor(y) {
+                this.hueCursor.style.top = `${y}px`;
+            }
+
+            hsvToRgb(h, s, v) {
+                const c = v * s;
+                const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+                const m = v - c;
+
+                let r, g, b;
+
+                if (h >= 0 && h < 60) {
+                    r = c; g = x; b = 0;
+                } else if (h >= 60 && h < 120) {
+                    r = x; g = c; b = 0;
+                } else if (h >= 120 && h < 180) {
+                    r = 0; g = c; b = x;
+                } else if (h >= 180 && h < 240) {
+                    r = 0; g = x; b = c;
+                } else if (h >= 240 && h < 300) {
+                    r = x; g = 0; b = c;
+                } else {
+                    r = c; g = 0; b = x;
+                }
+
+                return {
+                    r: Math.round((r + m) * 255),
+                    g: Math.round((g + m) * 255),
+                    b: Math.round((b + m) * 255)
+                };
+            }
+
+            rgbToHsv(r, g, b) {
+                r /= 255;
+                g /= 255;
+                b /= 255;
+
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const diff = max - min;
+
+                let h = 0;
+                if (diff !== 0) {
+                    if (max === r) {
+                        h = ((g - b) / diff) % 6;
+                    } else if (max === g) {
+                        h = (b - r) / diff + 2;
+                    } else {
+                        h = (r - g) / diff + 4;
+                    }
+                }
+                h = Math.round(h * 60);
+                if (h < 0) h += 360;
+
+                const s = max === 0 ? 0 : diff / max;
+                const v = max;
+
+                return { h, s, v };
+            }
+        }
+
+   
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const button = element.parentElement.querySelector('.copy-btn');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = '#4CAF50';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#2196F3';
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                const button = element.parentElement.querySelector('.copy-btn');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = '#4CAF50';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#2196F3';
+                }, 1500);
+            });
+        }
+
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            new FlutterColorPicker();
+        });
+    </script>
+</body>
+
+</html>
